@@ -9,6 +9,11 @@ class UserRole(Enum):
     NURSE = 'nurse'
     PATIENT = 'patient'
 
+class PrescriptionType(Enum):
+    PROCEDURE = 'procedure'
+    MEDICATION = 'medication'
+    SURGERY = 'surgery'
+
 class Database:
     def __init__(self, db_name='hospital.db'):
         self.db_name = db_name
@@ -67,6 +72,24 @@ class Database:
             final_diagnosis TEXT,
             FOREIGN KEY (user_id) REFERENCES users (id),
             FOREIGN KEY (doctor_id) REFERENCES doctors (id)
+        )
+        ''')
+
+        # Create prescriptions table
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS prescriptions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            patient_id INTEGER NOT NULL,
+            doctor_id INTEGER NOT NULL,
+            prescription_type TEXT NOT NULL,
+            description TEXT NOT NULL,
+            status TEXT DEFAULT 'pending',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            completed_at TIMESTAMP,
+            completed_by INTEGER,
+            FOREIGN KEY (patient_id) REFERENCES patients (id),
+            FOREIGN KEY (doctor_id) REFERENCES doctors (id),
+            FOREIGN KEY (completed_by) REFERENCES users (id)
         )
         ''')
 
@@ -191,5 +214,78 @@ class Database:
         
         conn.close()
         return result
+
+    def add_prescription(self, patient_id, doctor_id, prescription_type, description):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                'INSERT INTO prescriptions (patient_id, doctor_id, prescription_type, description) VALUES (?, ?, ?, ?)',
+                (patient_id, doctor_id, prescription_type.value, description)
+            )
+            prescription_id = cursor.lastrowid
+            conn.commit()
+            return self.get_prescription(prescription_id)
+        except Exception as e:
+            conn.rollback()
+            return None
+        finally:
+            conn.close()
+
+    def get_prescription(self, prescription_id):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM prescriptions WHERE id = ?', (prescription_id,))
+        prescription = cursor.fetchone()
+        conn.close()
+        return dict(prescription) if prescription else None
+
+    def get_patient_prescriptions(self, patient_id):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM prescriptions WHERE patient_id = ?', (patient_id,))
+        prescriptions = cursor.fetchall()
+        conn.close()
+        return [dict(prescription) for prescription in prescriptions]
+
+    def complete_prescription(self, prescription_id, completed_by):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                'UPDATE prescriptions SET status = ?, completed_at = ?, completed_by = ? WHERE id = ?',
+                ('completed', datetime.now(), completed_by, prescription_id)
+            )
+            conn.commit()
+            return self.get_prescription(prescription_id)
+        except Exception as e:
+            conn.rollback()
+            return None
+        finally:
+            conn.close()
+
+    def discharge_patient(self, patient_id, final_diagnosis):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                'UPDATE patients SET discharge_date = ?, final_diagnosis = ? WHERE id = ?',
+                (datetime.now(), final_diagnosis, patient_id)
+            )
+            conn.commit()
+            return self.get_patient_by_id(patient_id)
+        except Exception as e:
+            conn.rollback()
+            return None
+        finally:
+            conn.close()
+
+    def get_patient_by_id(self, patient_id):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM patients WHERE id = ?', (patient_id,))
+        patient = cursor.fetchone()
+        conn.close()
+        return dict(patient) if patient else None
 
 db = Database() 

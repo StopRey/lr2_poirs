@@ -1,6 +1,6 @@
 from flask import request, jsonify, Flask
 from flask_restful import Resource, Api
-from models import db, UserRole
+from models import db, UserRole, PrescriptionType
 from functools import wraps
 import jwt
 from datetime import datetime, timedelta
@@ -133,6 +133,8 @@ def get_profile(current_user):
         if patient:
             profile['admission_date'] = patient['admission_date']
             profile['discharge_date'] = patient['discharge_date']
+            profile['current_diagnosis'] = patient['current_diagnosis']
+            profile['final_diagnosis'] = patient['final_diagnosis']
 
     return jsonify(profile)
 
@@ -142,6 +144,130 @@ def get_profile(current_user):
 def get_all_users(current_user):
     users = db.get_all_users()
     return jsonify(users)
+
+@app.route('/patients/<int:patient_id>/diagnosis', methods=['PUT'])
+@token_required
+@role_required([UserRole.DOCTOR])
+def update_patient_diagnosis(current_user, patient_id):
+    data = request.get_json()
+    if 'diagnosis' not in data:
+        return jsonify({'message': 'Diagnosis is required'}), 400
+
+    # Get the patient
+    patient = db.get_patient_by_user_id(patient_id)
+    if not patient:
+        return jsonify({'message': 'Patient not found'}), 404
+
+    # Update the diagnosis
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            'UPDATE patients SET current_diagnosis = ? WHERE user_id = ?',
+            (data['diagnosis'], patient_id)
+        )
+        conn.commit()
+        return jsonify({'message': 'Diagnosis updated successfully'}), 200
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'message': 'Failed to update diagnosis'}), 500
+    finally:
+        conn.close()
+
+@app.route('/prescriptions', methods=['POST'])
+@token_required
+@role_required([UserRole.DOCTOR])
+def create_prescription(current_user):
+    data = request.get_json()
+    if not all(k in data for k in ('patient_id', 'prescription_type', 'description')):
+        return jsonify({'message': 'Missing required fields'}), 400
+
+    try:
+        prescription_type = PrescriptionType(data['prescription_type'])
+    except ValueError:
+        return jsonify({'message': 'Invalid prescription type'}), 400
+
+    # Get doctor's ID
+    doctor = db.get_doctor_by_user_id(current_user['id'])
+    if not doctor:
+        return jsonify({'message': 'Doctor not found'}), 404
+
+    # Create prescription
+    prescription = db.add_prescription(
+        patient_id=data['patient_id'],
+        doctor_id=doctor['id'],
+        prescription_type=prescription_type,
+        description=data['description']
+    )
+
+    if not prescription:
+        return jsonify({'message': 'Failed to create prescription'}), 400
+
+    return jsonify(prescription), 201
+
+@app.route('/prescriptions/<int:prescription_id>/complete', methods=['POST'])
+@token_required
+@role_required([UserRole.DOCTOR, UserRole.NURSE])
+def complete_prescription(current_user, prescription_id):
+    # Get the prescription
+    prescription = db.get_prescription(prescription_id)
+    if not prescription:
+        return jsonify({'message': 'Prescription not found'}), 404
+
+    # Check if the user can complete this type of prescription
+    if UserRole(current_user['role']) == UserRole.NURSE:
+        prescription_type = PrescriptionType(prescription['prescription_type'])
+        if prescription_type == PrescriptionType.SURGERY:
+            return jsonify({'message': 'Nurses cannot complete surgery prescriptions'}), 403
+
+    # Complete the prescription
+    updated_prescription = db.complete_prescription(prescription_id, current_user['id'])
+    if not updated_prescription:
+        return jsonify({'message': 'Failed to complete prescription'}), 400
+
+    return jsonify(updated_prescription)
+
+@app.route('/patients/<int:patient_id>/prescriptions', methods=['GET'])
+@token_required
+@role_required([UserRole.DOCTOR, UserRole.NURSE, UserRole.PATIENT])
+def get_patient_prescriptions(current_user, patient_id):
+    # Check if the user has permission to view these prescriptions
+    if UserRole(current_user['role']) == UserRole.PATIENT and current_user['id'] != patient_id:
+        return jsonify({'message': 'Unauthorized to view other patients\' prescriptions'}), 403
+
+    prescriptions = db.get_patient_prescriptions(patient_id)
+    return jsonify(prescriptions)
+
+@app.route('/patients/<int:patient_id>/discharge', methods=['POST'])
+@token_required
+@role_required([UserRole.DOCTOR])
+def discharge_patient(current_user, patient_id):
+    data = request.get_json()
+    if 'final_diagnosis' not in data:
+        return jsonify({'message': 'Final diagnosis is required'}), 400
+
+    # Get the patient
+    patient = db.get_patient_by_id(patient_id)
+    if not patient:
+        return jsonify({'message': 'Patient not found'}), 404
+
+    # Check if patient is already discharged
+    if patient['discharge_date']:
+        return jsonify({'message': 'Patient is already discharged'}), 400
+
+    # Discharge the patient
+    updated_patient = db.discharge_patient(patient_id, data['final_diagnosis'])
+    if not updated_patient:
+        return jsonify({'message': 'Failed to discharge patient'}), 400
+
+    return jsonify({
+        'message': 'Patient discharged successfully',
+        'patient': {
+            'id': updated_patient['id'],
+            'discharge_date': updated_patient['discharge_date'],
+            'final_diagnosis': updated_patient['final_diagnosis']
+        }
+    })
 
 if __name__ == '__main__':
     app.run(debug=True) 
