@@ -163,4 +163,33 @@ class Database:
             return dict(patient)
         return None
 
+    def get_all_users(self):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('SELECT * FROM users')
+        users = cursor.fetchall()
+        
+        result = []
+        for user in users:
+            user_dict = dict(user)
+            # Add role-specific information
+            if UserRole(user_dict['role']) == UserRole.DOCTOR:
+                doctor = self.get_doctor_by_user_id(user_dict['id'])
+                if doctor:
+                    user_dict['specialization'] = doctor['specialization']
+            elif UserRole(user_dict['role']) == UserRole.NURSE:
+                nurse = self.get_nurse_by_user_id(user_dict['id'])
+                if nurse:
+                    user_dict['department'] = nurse['department']
+            elif UserRole(user_dict['role']) == UserRole.PATIENT:
+                patient = self.get_patient_by_user_id(user_dict['id'])
+                if patient:
+                    user_dict['admission_date'] = patient['admission_date']
+                    user_dict['discharge_date'] = patient['discharge_date']
+            result.append(user_dict)
+        
+        conn.close()
+        return result
+
 db = Database() 

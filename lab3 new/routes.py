@@ -136,5 +136,12 @@ def get_profile(current_user):
 
     return jsonify(profile)
 
+@app.route('/users', methods=['GET'])
+@token_required
+@role_required([UserRole.ADMIN])
+def get_all_users(current_user):
+    users = db.get_all_users()
+    return jsonify(users)
+
 if __name__ == '__main__':
     app.run(debug=True) 
