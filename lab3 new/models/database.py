@@ -1,4 +1,4 @@
-from models import db, User, Doctor, Nurse, Patient, UserRole
+from models.models import db, User, Doctor, Nurse, Patient, UserRole
 import bcrypt
 from datetime import datetime
 

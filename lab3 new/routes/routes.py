@@ -1,6 +1,6 @@
 from flask import request, jsonify, Flask
 from flask_restful import Resource, Api
-from models import db, UserRole, PrescriptionType
+from models.models import db, UserRole, PrescriptionType
 from functools import wraps
 import jwt
 from datetime import datetime, timedelta
