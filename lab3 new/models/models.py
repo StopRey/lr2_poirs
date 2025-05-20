@@ -1,4 +1,4 @@
 from .enums import UserRole, PrescriptionType
-from .database import db
+from .database.hospital_db import db
 
-__all__ = ['UserRole', 'PrescriptionType', 'db'] 
+__all__ = ['UserRole', 'PrescriptionType', 'db']

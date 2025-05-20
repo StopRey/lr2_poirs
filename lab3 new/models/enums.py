@@ -9,4 +9,4 @@ class UserRole(Enum):
 class PrescriptionType(Enum):
     PROCEDURE = 'procedure'
     MEDICATION = 'medication'
-    SURGERY = 'surgery' 
+    SURGERY = 'surgery'
