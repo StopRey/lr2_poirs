@@ -29,7 +29,7 @@ def update_patient_diagnosis(current_user, patient_id):
         return jsonify({'message': 'Diagnosis updated successfully'}), 200
     except Exception as e:
         conn.rollback()
-        return jsonify({'message': 'Failed to update diagnosis'}), 500
+        return jsonify({'message': 'Failed to update diagnosis'}), 400
     finally:
         conn.close()
 
@@ -43,5 +43,5 @@ def discharge_patient(current_user, patient_id):
 
     patient = db.patients.discharge_patient(patient_id, data['final_diagnosis'])
     if not patient:
-        return jsonify({'message': 'Failed to discharge patient'}), 400
+        return jsonify({'message': 'Patient not found'}), 404
     return jsonify(patient) 

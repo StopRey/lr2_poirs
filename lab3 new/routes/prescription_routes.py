@@ -17,6 +17,11 @@ def create_prescription(current_user):
     except ValueError:
         return jsonify({'message': 'Invalid prescription type'}), 400
 
+    # Check if patient exists
+    patient = db.patients.get_patient_by_id(data['patient_id'])
+    if not patient:
+        return jsonify({'message': 'Patient not found'}), 404
+
     # Get doctor's ID
     doctor = db.users.get_doctor_by_user_id(current_user['id'])
     if not doctor:
@@ -31,7 +36,7 @@ def create_prescription(current_user):
     )
 
     if not prescription:
-        return jsonify({'message': 'Failed to create prescription'}), 400
+        return jsonify({'message': 'Prescription not created'}), 400
 
     return jsonify(prescription), 201
 
@@ -41,12 +46,17 @@ def create_prescription(current_user):
 def complete_prescription(current_user, prescription_id):
     prescription = db.prescriptions.complete_prescription(prescription_id, current_user['id'])
     if not prescription:
-        return jsonify({'message': 'Failed to complete prescription'}), 400
+        return jsonify({'message': 'Prescription not found'}), 404
     return jsonify(prescription)
 
 @app.route('/patients/<int:patient_id>/prescriptions', methods=['GET'])
 @token_required
 @role_required([UserRole.DOCTOR, UserRole.NURSE, UserRole.PATIENT])
 def get_patient_prescriptions(current_user, patient_id):
+    # Check if patient exists
+    patient = db.patients.get_patient_by_id(patient_id)
+    if not patient:
+        return jsonify({'message': 'Patient not found'}), 404
+        
     prescriptions = db.prescriptions.get_patient_prescriptions(patient_id)
     return jsonify(prescriptions) 
