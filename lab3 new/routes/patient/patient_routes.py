@@ -45,4 +45,24 @@ def discharge_patient(current_user, patient_id):
     patient = db.patients.discharge_patient(patient_id, data['final_diagnosis'])
     if not patient:
         return jsonify({'message': 'Patient not found'}), 404
-    return jsonify(patient) 
+    return jsonify(patient)
+
+@patient_bp.route('/patients/search', methods=['GET'])
+@token_required
+@role_required([UserRole.DOCTOR, UserRole.NURSE])
+def search_patients(current_user):
+    # Get filter parameters from query string
+    name = request.args.get('name', '')
+    diagnosis = request.args.get('diagnosis', '')
+    status = request.args.get('status', '')  # active/discharged
+    admission_date = request.args.get('admission_date', '')
+    
+    # Get filtered patients from database
+    patients = db.patients.search_patients(
+        name=name,
+        diagnosis=diagnosis,
+        status=status,
+        admission_date=admission_date
+    )
+    
+    return jsonify(patients) 
