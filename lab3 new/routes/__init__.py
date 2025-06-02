@@ -1,11 +1,15 @@
-from flask import Flask
-from flask_restful import Api
+from flask import Blueprint
+from .auth import auth_bp
+from .profile import profile_bp
+from .patient import patient_bp
+from .prescription import prescription_bp
+from .common import token_required, role_required
 
-app = Flask(__name__)
-app.secret_key = 'your-secret-key'  # Change this to a secure secret key in production
-api = Api(app)
-
-from .auth_routes import *
-from .profile_routes import *
-from .patient_routes import *
-from .prescription_routes import * 
+__all__ = [
+    'auth_bp',
+    'profile_bp',
+    'patient_bp',
+    'prescription_bp',
+    'token_required',
+    'role_required'
+] 

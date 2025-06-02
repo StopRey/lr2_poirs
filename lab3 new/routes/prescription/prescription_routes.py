@@ -1,10 +1,11 @@
-from flask import request, jsonify
-from models.enums import UserRole, PrescriptionType
+from flask import Blueprint, request, jsonify
+from models.enums.user_enums import UserRole, PrescriptionType
 from models.database.hospital_db import db
-from . import app
-from .decorators import token_required, role_required
+from ..common.decorators import token_required, role_required
 
-@app.route('/prescriptions', methods=['POST'])
+prescription_bp = Blueprint('prescription', __name__)
+
+@prescription_bp.route('/prescriptions', methods=['POST'])
 @token_required
 @role_required([UserRole.DOCTOR])
 def create_prescription(current_user):
@@ -40,7 +41,7 @@ def create_prescription(current_user):
 
     return jsonify(prescription), 201
 
-@app.route('/prescriptions/<int:prescription_id>/complete', methods=['POST'])
+@prescription_bp.route('/prescriptions/<int:prescription_id>/complete', methods=['POST'])
 @token_required
 @role_required([UserRole.DOCTOR, UserRole.NURSE])
 def complete_prescription(current_user, prescription_id):
@@ -49,7 +50,7 @@ def complete_prescription(current_user, prescription_id):
         return jsonify({'message': 'Prescription not found'}), 404
     return jsonify(prescription)
 
-@app.route('/patients/<int:patient_id>/prescriptions', methods=['GET'])
+@prescription_bp.route('/patients/<int:patient_id>/prescriptions', methods=['GET'])
 @token_required
 @role_required([UserRole.DOCTOR, UserRole.NURSE, UserRole.PATIENT])
 def get_patient_prescriptions(current_user, patient_id):

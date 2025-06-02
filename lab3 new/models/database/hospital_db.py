@@ -1,7 +1,7 @@
 from .base import Database
-from .user_manager import UserManager
-from .patient_manager import PatientManager
-from .prescription_manager import PrescriptionManager
+from .managers.user_manager import UserManager
+from .managers.patient_manager import PatientManager
+from .managers.prescription_manager import PrescriptionManager
 
 class HospitalDatabase:
     def __init__(self, db_name='hospital.db'):

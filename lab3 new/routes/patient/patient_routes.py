@@ -1,10 +1,11 @@
-from flask import request, jsonify
-from models.enums import UserRole
+from flask import Blueprint, request, jsonify
+from models.enums.user_enums import UserRole
 from models.database.hospital_db import db
-from . import app
-from .decorators import token_required, role_required
+from ..common.decorators import token_required, role_required
 
-@app.route('/patients/<int:patient_id>/diagnosis', methods=['PUT'])
+patient_bp = Blueprint('patient', __name__)
+
+@patient_bp.route('/patients/<int:patient_id>/diagnosis', methods=['PUT'])
 @token_required
 @role_required([UserRole.DOCTOR])
 def update_patient_diagnosis(current_user, patient_id):
@@ -33,7 +34,7 @@ def update_patient_diagnosis(current_user, patient_id):
     finally:
         conn.close()
 
-@app.route('/patients/<int:patient_id>/discharge', methods=['POST'])
+@patient_bp.route('/patients/<int:patient_id>/discharge', methods=['POST'])
 @token_required
 @role_required([UserRole.DOCTOR])
 def discharge_patient(current_user, patient_id):
